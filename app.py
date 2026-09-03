@@ -2,7 +2,7 @@ import os
 import json
 import requests
 
-ACCOUNT = "velav"
+ACCOUNT = "networkbsc"
 API_URL = "https://proton.protonuk.io/v2/history/get_actions"
 
 TOKEN = os.environ["TELEGRAM_TOKEN"]
