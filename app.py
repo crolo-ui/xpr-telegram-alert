@@ -88,15 +88,18 @@ def main():
         data = action.get("act", {}).get("data", {})
 
         sender = data.get("from", "unknown")
-        receiver = data.get("to", ACCOUNT)
-        quantity = data.get("quantity", "unknown")
-        memo = data.get("memo", "")
+receiver = data.get("to", ACCOUNT)
+quantity = data.get("quantity", "unknown")
+memo = data.get("memo", "")
+
+timestamp = action.get("timestamp", "")
 
         message = (
-            "🔔 XPR PAYMENT RECEIVED\n\n"
-            f"💰 Amount: {quantity}\n"
-            f"👤 From: @{sender}\n"
-            f"📥 To: @{receiver}\n"
+    "🔔 XPR PAYMENT RECEIVED\n\n"
+    f"💰 Amount: {quantity}\n"
+    f"👤 From: @{sender}\n"
+    f"📥 To: @{receiver}\n"
+    f"🕐 Time: {timestamp}\n"
         )
 
         if memo:
