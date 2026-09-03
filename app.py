@@ -3,7 +3,10 @@ import json
 import requests
 
 ACCOUNT = "networkbsc"
-API_URL = "https://proton.protonuk.io/v2/history/get_actions"
+API_URLS = [
+    "https://proton.protonuk.io/v2/history/get_actions",
+    "https://api-xprnetwork-main.saltant.io/v2/history/get_actions"
+]
 
 TOKEN = os.environ["TELEGRAM_TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
@@ -49,10 +52,17 @@ def get_transfers():
         "limit": 50
     }
 
-    r = requests.get(API_URL, params=params, timeout=20)
-    r.raise_for_status()
+    last_error = None
 
-    return r.json().get("actions", [])
+    for api_url in API_URLS:
+        try:
+            r = requests.get(api_url, params=params, timeout=20)
+            r.raise_for_status()
+            return r.json().get("actions", [])
+        except requests.RequestException as e:
+            last_error = e
+
+    raise last_error
 
 
 def main():
