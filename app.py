@@ -87,19 +87,19 @@ def main():
     for action in reversed(new_actions):
         data = action.get("act", {}).get("data", {})
 
-        sender = data.get("from", "unknown")
-receiver = data.get("to", ACCOUNT)
-quantity = data.get("quantity", "unknown")
-memo = data.get("memo", "")
+                sender = data.get("from", "unknown")
+        receiver = data.get("to", ACCOUNT)
+        quantity = data.get("quantity", "unknown")
+        memo = data.get("memo", "")
 
-timestamp = action.get("timestamp", "")
+        timestamp = action.get("timestamp", "")
 
         message = (
-    "🔔 XPR PAYMENT RECEIVED\n\n"
-    f"💰 Amount: {quantity}\n"
-    f"👤 From: @{sender}\n"
-    f"📥 To: @{receiver}\n"
-    f"🕐 Time: {timestamp}\n"
+            "🔔 XPR PAYMENT RECEIVED\n\n"
+            f"💰 Amount: {quantity}\n"
+            f"👤 From: @{sender}\n"
+            f"📥 To: @{receiver}\n"
+            f"🕐 Time: {timestamp}\n"
         )
 
         if memo:
