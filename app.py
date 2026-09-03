@@ -55,14 +55,34 @@ def get_transfers():
     last_error = None
 
     for api_url in API_URLS:
-        try:
-            r = requests.get(api_url, params=params, timeout=20)
-            r.raise_for_status()
-            return r.json().get("actions", [])
-        except requests.RequestException as e:
-            last_error = e
+        for attempt in range(3):
+            try:
+                r = requests.get(api_url, params=params, timeout=20)
 
-    raise last_error
+                if r.status_code in (429, 500, 502, 503, 504):
+                    last_error = requests.HTTPError(
+                        f"{r.status_code} Server Error for {api_url}"
+                    )
+
+                    if attempt < 2:
+                        import time
+                        time.sleep(2 + attempt * 3)
+                        continue
+
+                    break
+
+                r.raise_for_status()
+                return r.json().get("actions", [])
+
+            except requests.RequestException as e:
+                last_error = e
+
+                if attempt < 2:
+                    import time
+                    time.sleep(2 + attempt * 3)
+
+    print(f"WARNING: XPR history APIs unavailable: {last_error}")
+    return []
 
 
 def main():
