@@ -1,4 +1,5 @@
 name: XPR Payment Alerts
+
 concurrency:
   group: xpr-payment-alert
   cancel-in-progress: false
