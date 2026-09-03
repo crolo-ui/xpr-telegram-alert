@@ -1,5 +1,8 @@
 name: XPR Payment Alerts
-
+concurrency:
+  group: xpr-payment-alert
+  cancel-in-progress: false
+  
 on:
   schedule:
     - cron: "2-59/5 * * * *"
