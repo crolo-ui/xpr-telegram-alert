@@ -87,7 +87,7 @@ def main():
     for action in reversed(new_actions):
         data = action.get("act", {}).get("data", {})
 
-                sender = data.get("from", "unknown")
+        sender = data.get("from", "unknown")
         receiver = data.get("to", ACCOUNT)
         quantity = data.get("quantity", "unknown")
         memo = data.get("memo", "")
