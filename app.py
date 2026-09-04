@@ -42,6 +42,22 @@ def send_telegram(text):
 
     r.raise_for_status()
 
+def get_xpr_price():
+    try:
+        url = "https://api.coingecko.com/api/v3/simple/price"
+        params = {
+            "ids": "xpr-network",
+            "vs_currencies": "usd"
+        }
+
+        r = requests.get(url, params=params, timeout=10)
+        r.raise_for_status()
+
+        return r.json()["xpr-network"]["usd"]
+
+    except Exception as e:
+        print(f"WARNING: Could not get XPR price: {e}")
+        return None
 
 def get_transfers():
     params = {
