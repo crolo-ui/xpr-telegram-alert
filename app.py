@@ -3,6 +3,7 @@ import json
 import requests
 
 ACCOUNT = "networkbsc"
+
 API_URLS = [
     "https://proton.protonuk.io/v2/history/get_actions",
     "https://api-xprnetwork-main.saltant.io/v2/history/get_actions"
@@ -42,15 +43,22 @@ def send_telegram(text):
 
     r.raise_for_status()
 
+
 def get_xpr_price():
     try:
         url = "https://api.coingecko.com/api/v3/simple/price"
+
         params = {
             "ids": "xpr-network",
             "vs_currencies": "usd"
         }
 
-        r = requests.get(url, params=params, timeout=10)
+        r = requests.get(
+            url,
+            params=params,
+            timeout=10
+        )
+
         r.raise_for_status()
 
         return r.json()["xpr-network"]["usd"]
@@ -58,6 +66,7 @@ def get_xpr_price():
     except Exception as e:
         print(f"WARNING: Could not get XPR price: {e}")
         return None
+
 
 def get_transfers():
     params = {
@@ -73,7 +82,11 @@ def get_transfers():
     for api_url in API_URLS:
         for attempt in range(3):
             try:
-                r = requests.get(api_url, params=params, timeout=20)
+                r = requests.get(
+                    api_url,
+                    params=params,
+                    timeout=20
+                )
 
                 if r.status_code in (429, 500, 502, 503, 504):
                     last_error = requests.HTTPError(
@@ -88,6 +101,7 @@ def get_transfers():
                     break
 
                 r.raise_for_status()
+
                 return r.json().get("actions", [])
 
             except requests.RequestException as e:
@@ -98,6 +112,7 @@ def get_transfers():
                     time.sleep(2 + attempt * 3)
 
     print(f"WARNING: XPR history APIs unavailable: {last_error}")
+
     return []
 
 
@@ -112,11 +127,13 @@ def main():
     if not seen:
         for action in actions:
             trx = action.get("trx_id")
+
             if trx:
                 seen.add(trx)
 
         state["seen"] = list(seen)[-200:]
         save_state(state)
+
         return
 
     new_actions = []
@@ -140,9 +157,27 @@ def main():
 
         timestamp = action.get("timestamp", "")
 
+        xpr_value = None
+
+        try:
+            xpr_amount = float(quantity.split()[0])
+            xpr_price = get_xpr_price()
+
+            if xpr_price is not None:
+                xpr_value = xpr_amount * xpr_price
+
+        except (ValueError, AttributeError):
+            pass
+
         message = (
             "🔔 XPR PAYMENT RECEIVED\n\n"
             f"💰 Amount: {quantity}\n"
+        )
+
+        if xpr_value is not None:
+            message += f"💵 Value: ~${xpr_value:.4f} USDT\n"
+
+        message += (
             f"👤 From: @{sender}\n"
             f"📥 To: @{receiver}\n"
             f"🕐 Time: {timestamp}\n"
@@ -156,6 +191,7 @@ def main():
         send_telegram(message)
 
     state["seen"] = list(seen)[-200:]
+
     save_state(state)
 
 
