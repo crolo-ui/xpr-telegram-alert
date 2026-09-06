@@ -47,36 +47,47 @@ def send_telegram(text):
 
 
 def get_xpr_price():
-    urls = [
-        "https://api.coingecko.com/api/v3/simple/price",
-        "https://pro-api.coingecko.com/api/v3/simple/price"
+    rpc_endpoints = [
+        "https://proton.eosusa.io",
+        "https://api-xprnetwork-main.saltant.io"
     ]
 
-    params = {
-        "ids": "xpr-network",
-        "vs_currencies": "usd"
+    payload = {
+        "json": True,
+        "code": "oracles",
+        "scope": "oracles",
+        "table": "data",
+        "lower_bound": "3",
+        "upper_bound": "3",
+        "limit": 1
     }
 
-    for url in urls:
+    for endpoint in rpc_endpoints:
         try:
-            r = requests.get(
-                url,
-                params=params,
+            r = requests.post(
+                f"{endpoint}/v1/chain/get_table_rows",
+                json=payload,
                 timeout=10
             )
 
-            if r.status_code == 200:
-                data = r.json()
+            r.raise_for_status()
 
-                price = data.get("xpr-network", {}).get("usd")
+            rows = r.json().get("rows", [])
+
+            if rows:
+                price = rows[0].get("aggregate", {}).get("d_double")
 
                 if price is not None:
                     return float(price)
 
         except Exception as e:
-            print(f"WARNING: XPR price request failed: {e}")
+            print(
+                f"WARNING: XPR oracle failed on "
+                f"{endpoint}: {e}"
+            )
 
-    print("WARNING: Could not get XPR price from CoinGecko.")
+    print("WARNING: Could not get XPR/USD oracle price.")
+
     return None
 
 
@@ -89,12 +100,20 @@ def convert_to_ist(timestamp):
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
 
-        ist = dt.astimezone(ZoneInfo("Asia/Kolkata"))
+        ist = dt.astimezone(
+            ZoneInfo("Asia/Kolkata")
+        )
 
-        return ist.strftime("%Y-%m-%d %I:%M:%S %p IST")
+        return ist.strftime(
+            "%Y-%m-%d %I:%M:%S %p IST"
+        )
 
     except Exception as e:
-        print(f"WARNING: Could not convert timestamp to IST: {e}")
+        print(
+            f"WARNING: Could not convert "
+            f"timestamp to IST: {e}"
+        )
+
         return timestamp
 
 
@@ -118,37 +137,56 @@ def get_transfers():
                     timeout=20
                 )
 
-                if r.status_code in (429, 500, 502, 503, 504):
+                if r.status_code in (
+                    429,
+                    500,
+                    502,
+                    503,
+                    504
+                ):
                     last_error = requests.HTTPError(
-                        f"{r.status_code} Server Error for {api_url}"
+                        f"{r.status_code} Server Error "
+                        f"for {api_url}"
                     )
 
                     if attempt < 2:
                         import time
-                        time.sleep(2 + attempt * 3)
+                        time.sleep(
+                            2 + attempt * 3
+                        )
                         continue
 
                     break
 
                 r.raise_for_status()
 
-                return r.json().get("actions", [])
+                return r.json().get(
+                    "actions",
+                    []
+                )
 
             except requests.RequestException as e:
                 last_error = e
 
                 if attempt < 2:
                     import time
-                    time.sleep(2 + attempt * 3)
+                    time.sleep(
+                        2 + attempt * 3
+                    )
 
-    print(f"WARNING: XPR history APIs unavailable: {last_error}")
+    print(
+        f"WARNING: XPR history APIs "
+        f"unavailable: {last_error}"
+    )
 
     return []
 
 
 def main():
     state = load_state()
-    seen = set(state.get("seen", []))
+    seen = set(
+        state.get("seen", [])
+    )
 
     actions = get_transfers()
 
@@ -162,6 +200,7 @@ def main():
                 seen.add(trx)
 
         state["seen"] = list(seen)[-200:]
+
         save_state(state)
 
         return
@@ -178,26 +217,61 @@ def main():
         new_actions.append(action)
 
     for action in reversed(new_actions):
-        data = action.get("act", {}).get("data", {})
+        data = action.get(
+            "act",
+            {}
+        ).get(
+            "data",
+            {}
+        )
 
-        sender = data.get("from", "unknown")
-        receiver = data.get("to", ACCOUNT)
-        quantity = data.get("quantity", "unknown")
-        memo = data.get("memo", "")
+        sender = data.get(
+            "from",
+            "unknown"
+        )
 
-        timestamp = action.get("timestamp", "")
-        ist_time = convert_to_ist(timestamp)
+        receiver = data.get(
+            "to",
+            ACCOUNT
+        )
+
+        quantity = data.get(
+            "quantity",
+            "unknown"
+        )
+
+        memo = data.get(
+            "memo",
+            ""
+        )
+
+        timestamp = action.get(
+            "timestamp",
+            ""
+        )
+
+        ist_time = convert_to_ist(
+            timestamp
+        )
 
         xpr_value = None
 
         try:
-            xpr_amount = float(quantity.split()[0])
+            xpr_amount = float(
+                quantity.split()[0]
+            )
+
             xpr_price = get_xpr_price()
 
             if xpr_price is not None:
-                xpr_value = xpr_amount * xpr_price
+                xpr_value = (
+                    xpr_amount * xpr_price
+                )
 
-        except (ValueError, AttributeError):
+        except (
+            ValueError,
+            AttributeError
+        ):
             pass
 
         message = (
@@ -206,7 +280,10 @@ def main():
         )
 
         if xpr_value is not None:
-            message += f"💵 Value: ~${xpr_value:.4f} USDT\n"
+            message += (
+                f"💵 Value: "
+                f"~${xpr_value:.4f} USDT\n"
+            )
 
         message += (
             f"👤 From: @{sender}\n"
@@ -215,9 +292,14 @@ def main():
         )
 
         if memo:
-            message += f"📝 Memo: {memo}\n"
+            message += (
+                f"📝 Memo: {memo}\n"
+            )
 
-        message += f"\n🔗 Transaction:\n{action.get('trx_id')}"
+        message += (
+            f"\n🔗 Transaction:\n"
+            f"{action.get('trx_id')}"
+        )
 
         send_telegram(message)
 
