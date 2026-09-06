@@ -1,6 +1,8 @@
 import os
 import json
 import requests
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 ACCOUNT = "networkbsc"
 
@@ -45,27 +47,55 @@ def send_telegram(text):
 
 
 def get_xpr_price():
+    urls = [
+        "https://api.coingecko.com/api/v3/simple/price",
+        "https://pro-api.coingecko.com/api/v3/simple/price"
+    ]
+
+    params = {
+        "ids": "xpr-network",
+        "vs_currencies": "usd"
+    }
+
+    for url in urls:
+        try:
+            r = requests.get(
+                url,
+                params=params,
+                timeout=10
+            )
+
+            if r.status_code == 200:
+                data = r.json()
+
+                price = data.get("xpr-network", {}).get("usd")
+
+                if price is not None:
+                    return float(price)
+
+        except Exception as e:
+            print(f"WARNING: XPR price request failed: {e}")
+
+    print("WARNING: Could not get XPR price from CoinGecko.")
+    return None
+
+
+def convert_to_ist(timestamp):
     try:
-        url = "https://api.coingecko.com/api/v3/simple/price"
-
-        params = {
-            "ids": "xpr-network",
-            "vs_currencies": "usd"
-        }
-
-        r = requests.get(
-            url,
-            params=params,
-            timeout=10
+        dt = datetime.fromisoformat(
+            timestamp.replace("Z", "+00:00")
         )
 
-        r.raise_for_status()
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
 
-        return r.json()["xpr-network"]["usd"]
+        ist = dt.astimezone(ZoneInfo("Asia/Kolkata"))
+
+        return ist.strftime("%Y-%m-%d %I:%M:%S %p IST")
 
     except Exception as e:
-        print(f"WARNING: Could not get XPR price: {e}")
-        return None
+        print(f"WARNING: Could not convert timestamp to IST: {e}")
+        return timestamp
 
 
 def get_transfers():
@@ -156,6 +186,7 @@ def main():
         memo = data.get("memo", "")
 
         timestamp = action.get("timestamp", "")
+        ist_time = convert_to_ist(timestamp)
 
         xpr_value = None
 
@@ -180,7 +211,7 @@ def main():
         message += (
             f"👤 From: @{sender}\n"
             f"📥 To: @{receiver}\n"
-            f"🕐 Time: {timestamp}\n"
+            f"🕐 Time: {ist_time}\n"
         )
 
         if memo:
